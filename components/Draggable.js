@@ -6,7 +6,9 @@ export default function Draggable({ id, className = '', children }) {
   const d = useRef(null);
   const el = useRef(null);
   useEffect(() => {
+    const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
     const constrain = (position) => {
+      if (isMobile()) return { x: 0, y: 0 };
       if (!el.current) return position;
       const rect = el.current.getBoundingClientRect();
       const baseLeft = rect.left - position.x;
@@ -30,6 +32,7 @@ export default function Draggable({ id, className = '', children }) {
     };
   }, [id]);
   const down = (e) => {
+    if (window.matchMedia('(max-width: 768px)').matches) return;
     if (!e.target.closest('.grip')) return;
     d.current = { sx: e.clientX - p.x, sy: e.clientY - p.y, el: e.currentTarget };
     e.currentTarget.setPointerCapture(e.pointerId);
