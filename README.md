@@ -15,7 +15,9 @@ A cozy, kawaii-styled Pomodoro timer with drag-and-move cards, customizable back
 ## Screenshot
 
 <!-- Save a project screenshot as screenshots/pomodoro.png -->
-![Kawaii Pixel Pomodoro screenshot](./screenshots/pomodoro.png)
+![Kawaii Pixel Pomodoro screenshot](./img/kw-pomodoro.png)
+
+![Kawaii Pixel Pomodoro screenshot](./img/kw-pomodoro2.png)
 
 ## Local setup
 
@@ -28,13 +30,3 @@ A cozy, kawaii-styled Pomodoro timer with drag-and-move cards, customizable back
 7. Run `npm run dev`, then open `http://127.0.0.1:3000/`.
 
 Spotify browser playback requires a Spotify Premium account.
-
-## Deploy with Vercel
-
-1. Push the project to GitHub.
-2. Import the repository at [vercel.com/new](https://vercel.com/new).
-3. Add these environment variables:
-   - `NEXT_PUBLIC_SPOTIFY_CLIENT_ID`
-   - `NEXT_PUBLIC_SPOTIFY_REDIRECT_URI=https://YOUR-PROJECT.vercel.app/`
-   - `NEXT_PUBLIC_SITE_URL=https://YOUR-PROJECT.vercel.app`
-4. Redeploy and register the exact Vercel redirect URL in the Spotify Developer Dashboard.
