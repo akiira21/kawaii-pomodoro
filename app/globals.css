@@ -4,6 +4,8 @@ html,body{height:100%;margin:0}
 body{font-family:var(--f-vt),monospace;font-size:22px;color:var(--ink);overflow-x:hidden}
 html{overflow-x:hidden}
 .bg{position:fixed;inset:0;width:100vw;height:100vh;height:100svh;object-fit:cover;image-rendering:pixelated;z-index:-1}
+.pixel-base{z-index:-2}
+.stage{position:relative;z-index:2}
 .stage{width:100%;max-width:100%;min-height:100vh;min-height:100svh;display:flex;flex-wrap:wrap;gap:36px;align-items:center;justify-content:center;padding:72px 20px 40px;overflow-x:hidden}
 .drag{max-width:100%}
 .card{background:var(--cream);padding:0 22px 22px;width:min(100%,420px);

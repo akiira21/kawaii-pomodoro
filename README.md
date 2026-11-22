@@ -7,6 +7,7 @@ A cozy, kawaii-styled Pomodoro timer with drag-and-move cards, customizable back
 - Focus, short-break, and long-break timers
 - Ring and digital clock styles
 - Sakura, meadow, night, and sunset-sea themes
+- Scene-specific GPU-shader motion: meadow flowers and wind, falling sakura petals and wind, night fireflies and swaying grass, and moving sunset-sea water
 - Custom uploaded image or video backgrounds
 - Accent-color customization
 - Spotify playlist, album, artist, and track playback
