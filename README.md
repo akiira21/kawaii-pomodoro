@@ -11,6 +11,7 @@ A cozy, kawaii-styled Pomodoro timer with drag-and-move cards, customizable back
 - Custom uploaded image or video backgrounds
 - Accent-color customization
 - Spotify playlist, album, artist, and track playback
+- Locally saved Spotify playlist history with a name-based replay menu
 - Responsive kawaii pixel UI
 
 ## Screenshot

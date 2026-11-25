@@ -5,6 +5,8 @@ const CID = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
 const REDIRECT_URI = process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI;
 const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state';
 const LOFI = 'https://open.spotify.com/playlist/37i9dQZF1DWWQRwui0ExPn';
+const PLAYLIST_HISTORY_KEY = 'kp_spotify_playlist_history';
+const MAX_PLAYLIST_HISTORY = 10;
 const exchangingCodes = new Set();
 const b64 = (b) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const store = () => JSON.parse(localStorage.getItem('sp_t') || 'null');
@@ -37,11 +39,12 @@ async function freshToken() {
   if (s && Date.now() > s.exp) s = await tokenReq({ grant_type: 'refresh_token', refresh_token: s.refresh });
   return s?.access;
 }
-const toBody = (link) => {
-  const m = link.match(/(playlist|album|artist|track)[/:]([A-Za-z0-9]+)/);
+const parseResource = (link) => {
+  const m = String(link).match(/(?:spotify:)?(playlist|album|artist|track)[/:]([A-Za-z0-9]+)/);
   if (!m) return null;
-  const uri = `spotify:${m[1]}:${m[2]}`;
-  return m[1] === 'track' ? { uris: [uri] } : { context_uri: uri };
+  const [, type, id] = m;
+  const uri = `spotify:${type}:${id}`;
+  return { type, id, uri, body: type === 'track' ? { uris: [uri] } : { context_uri: uri } };
 };
 // Hand-made pixel icons (1 = filled pixel)
 const next = ['100001', '110001', '111001', '111101', '111001', '110001', '100001'];
@@ -67,9 +70,25 @@ export default function Spotify() {
   const [vol, setVol] = useState(4);
   const [showLink, setShowLink] = useState(false);
   const [link, setLink] = useState(LOFI);
+  const [playlistHistory, setPlaylistHistory] = useState([]);
   const [err, setErr] = useState('');
   const player = useRef(null);
   const device = useRef(null);
+  const playlistHistoryRef = useRef([]);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(PLAYLIST_HISTORY_KEY) || '[]');
+      const history = Array.isArray(saved)
+        ? saved.filter((item) => item && /^spotify:playlist:[A-Za-z0-9]+$/.test(item.uri) && typeof item.name === 'string').slice(0, MAX_PLAYLIST_HISTORY)
+        : [];
+      playlistHistoryRef.current = history;
+      setPlaylistHistory(history);
+    } catch (error) {
+      console.error('Could not load Spotify playlist history:', error);
+      setErr('Could not load saved playlist history from this browser.');
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -110,14 +129,52 @@ export default function Spotify() {
     return () => player.current?.disconnect();
   }, [authed]);
 
-  const play = async () => {
-    const body = toBody(link);
-    if (!body) return setErr('Paste a Spotify playlist, album, artist or track link.');
+  const rememberPlaylist = (item) => {
+    const history = [item, ...playlistHistoryRef.current.filter((saved) => saved.uri !== item.uri)].slice(0, MAX_PLAYLIST_HISTORY);
+    try {
+      localStorage.setItem(PLAYLIST_HISTORY_KEY, JSON.stringify(history));
+    } catch (error) {
+      console.error('Could not save Spotify playlist history:', error);
+      setErr('Playlist played, but its history could not be saved in this browser.');
+      return;
+    }
+    playlistHistoryRef.current = history;
+    setPlaylistHistory(history);
+  };
+
+  const play = async (target = link) => {
+    const resource = parseResource(target);
+    if (!resource) return setErr('Paste a Spotify playlist, album, artist or track link.');
     setErr(''); player.current?.activateElement();
-    const r = await fetch('https://api.spotify.com/v1/me/player/play?device_id=' + device.current, {
-      method: 'PUT', headers: { Authorization: 'Bearer ' + (await freshToken()), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-    });
-    if (!r.ok) setErr('Could not start that link. Check it and try again.');
+    try {
+      const access = await freshToken();
+      const r = await fetch('https://api.spotify.com/v1/me/player/play?device_id=' + device.current, {
+        method: 'PUT', headers: { Authorization: 'Bearer ' + access, 'Content-Type': 'application/json' }, body: JSON.stringify(resource.body),
+      });
+      if (!r.ok) {
+        setErr('Could not start that link. Check it and try again.');
+        return;
+      }
+      if (resource.type === 'playlist') {
+        let name = `Spotify playlist ${resource.id.slice(-4)}`;
+        try {
+          const metadata = await fetch(`https://api.spotify.com/v1/playlists/${resource.id}?fields=name`, {
+            headers: { Authorization: 'Bearer ' + access },
+          });
+          if (!metadata.ok) throw new Error(`HTTP ${metadata.status}`);
+          const details = await metadata.json();
+          if (!details.name || typeof details.name !== 'string') throw new Error('Playlist name was not provided');
+          name = details.name;
+        } catch (error) {
+          console.warn('Could not retrieve Spotify playlist name:', error);
+          setErr('Playlist played, but Spotify could not provide its name. It was saved with a generic label.');
+        }
+        rememberPlaylist({ uri: resource.uri, name });
+      }
+    } catch (error) {
+      console.error('Spotify playback failed:', error);
+      setErr(`Could not start playback: ${error.message}`);
+    }
   };
   const p = player.current;
   const name = st?.track_window?.current_track?.name || (ready ? 'Pick a playlist' : 'Connecting…');
@@ -145,6 +202,13 @@ export default function Spotify() {
         </div>
         {showLink && <div className="row"><input type="text" value={link} onChange={(e) => setLink(e.target.value)} aria-label="Spotify link" />
           <button className="px go sm" disabled={!ready} onClick={play}>Play link</button></div>}
+        {showLink && <div className="row">
+          <select className="playlist-history" aria-label="Past playlists" value="" disabled={!ready || playlistHistory.length === 0}
+            onChange={(e) => { if (e.target.value) play(e.target.value); }}>
+            <option value="">Past playlists…</option>
+            {playlistHistory.map((item) => <option key={item.uri} value={item.uri}>{item.name}</option>)}
+          </select>
+        </div>}
       </>)}
       {err && <p role="alert">{err}</p>}
     </Draggable>
